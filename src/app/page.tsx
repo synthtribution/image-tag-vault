@@ -1,5 +1,5 @@
 "use client"; // Indica que este archivo es de cliente y permite el uso de hooks y efectos de React
-import { useEffect, useState, useRef, useMemo } from "react"; // Import useRef
+import { useEffect, useState, useRef, useMemo, Suspense } from "react"; // Import useRef
 import { searchTags } from "./utils/searchTags"; // Importamos la función de búsqueda
 import { getIconForType } from "./utils/getIconForType"; // Importamos la función de iconos
 import { ImageData, TagInfo } from "./types"; // Importamos los tipos de datos
@@ -10,7 +10,7 @@ import { Masonry } from "masonic";
 import ImageModal from "./components/ImageModal";
 
 // El componente principal de la página
-export default function HomePage() {
+function HomePageContent() {
   const { images, filteredImages, tagsIndex, setFilteredImages } =
     useDataContext(); // Obtenemos el contexto de datos
 
@@ -368,5 +368,13 @@ export default function HomePage() {
         />
       )}
     </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense fallback={<div className="loading-fallback">Cargando aplicación...</div>}>
+      <HomePageContent />
+    </Suspense>
   );
 }
