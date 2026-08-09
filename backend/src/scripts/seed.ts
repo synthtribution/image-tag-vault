@@ -2,7 +2,9 @@ import fs from 'fs';
 import path from 'path';
 import Papa from 'papaparse';
 import { fileURLToPath } from 'url';
-import prisma from '../db.js';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 // Para soportar __dirname en ESM
 const __filename = fileURLToPath(import.meta.url);
