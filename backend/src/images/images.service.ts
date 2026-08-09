@@ -1,41 +1,35 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { ImageResponseDto } from './dto/image-response.dto';
+import { ImageListItemDto } from './dto/image-list-item.dto';
 
 @Injectable()
 export class ImagesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(): Promise<ImageResponseDto[]> {
+  async findByPage(page: number = 1): Promise<ImageListItemDto[]> {
     try {
+      const pageSize = 100;
+      const skip = (page - 1) * pageSize;
+
+      console.log(`ImagesService.findByPage - Consultando página ${page} (skip: ${skip}, take: ${pageSize})...`);
       const images = await this.prisma.image.findMany({
-        include: {
-          tags: {
-            include: {
-              tag: true,
-            },
-          },
-          characters: {
-            include: {
-              character: true,
-            },
-          },
-          rating: true,
+        select: {
+          id: true,
+          filename: true,
         },
         orderBy: {
           createdAt: 'desc',
         },
+        skip,
+        take: pageSize,
       });
 
       return images.map((img) => ({
+        id: img.id,
         image: img.filename,
-        created_at: img.createdAt.toISOString(),
-        tags: img.tags.map((t) => t.tag.name),
-        character_tags: img.characters.map((c) => c.character.name),
-        ratings: img.rating ? [img.rating.name] : [],
       }));
     } catch (error) {
-      console.error('Error in ImagesService.findAll:', error);
+      console.error('Error in ImagesService.findByPage:', error);
       throw new InternalServerErrorException('Error al consultar las imágenes en la base de datos.');
     }
   }

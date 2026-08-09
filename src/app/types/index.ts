@@ -1,9 +1,10 @@
 export interface ImageData {
+  id: number;
   image: string;
-  created_at: string;
-  tags: string[];
-  character_tags: string[];
-  ratings: string[];
+  created_at?: string;
+  tags?: string[];
+  character_tags?: string[];
+  ratings?: string[];
 }
 
 export interface TagInfo {

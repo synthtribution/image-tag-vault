@@ -4,14 +4,14 @@ import { searchTags } from "./utils/searchTags"; // Importamos la función de b�
 import { getIconForType } from "./utils/getIconForType"; // Importamos la función de iconos
 import { ImageData, TagInfo } from "./types"; // Importamos los tipos de datos
 import { useDataContext } from "./contexts/DataContext";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { parseTagsFromString } from "./utils/parseTags";
 import { Masonry } from "masonic";
 import ImageModal from "./components/ImageModal";
 
 // El componente principal de la página
 function HomePageContent() {
-  const { images, filteredImages, tagsIndex, setFilteredImages } =
+  const { images, filteredImages, tagsIndex, setFilteredImages, fetchImagesPage } =
     useDataContext(); // Obtenemos el contexto de datos
 
   const [searchText, setSearchText] = useState(""); // Texto que el usuario escribe
@@ -27,6 +27,10 @@ function HomePageContent() {
   const [randomImages, setRandomImages] = useState<typeof filteredImages>([]);
 
   const searchParams = useSearchParams();
+  const router = useRouter();
+
+  const pageParam = searchParams.get("page") || "1";
+  const currentPage = parseInt(pageParam, 10) || 1;
 
   // Create a ref for the search input div
   const searchInputDivRef = useRef<HTMLDivElement | null>(null);
@@ -135,7 +139,11 @@ function HomePageContent() {
     }
 
     const filtered = images.filter((img) => {
-      const allTags = [...img.tags, ...img.character_tags, ...img.ratings];
+      const allTags = [
+        ...(img.tags || []),
+        ...(img.character_tags || []),
+        ...(img.ratings || []),
+      ];
       return tagsToUse.every((tag) => allTags.includes(tag));
     });
     if (filtered.length === 0) {
@@ -196,36 +204,37 @@ function HomePageContent() {
       onClick={() => setSelectedImage(data)}
     />
   );
-  const [currentPage, setCurrentPage] = useState(1);
 
-  const imagesPerPage = 100;
-  const indexOfLastImage = currentPage * imagesPerPage;
-  const indexOfFirstImage = indexOfLastImage - imagesPerPage;
-  const allImages = randomImages.length > 0 ? randomImages : filteredImages;
-  const currentImages = allImages.slice(indexOfFirstImage, indexOfLastImage);
+  const currentImages = randomImages.length > 0 ? randomImages : filteredImages;
   const masonryKey = useMemo(
     () => Math.floor(Math.random() * 1e7),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [currentPage, randomImages, filteredImages]
   );
 
+  // Cargar las imágenes del servidor cuando cambia la página en la URL
+  useEffect(() => {
+    fetchImagesPage(currentPage);
+  }, [currentPage, fetchImagesPage]);
+
+  // Manejar navegación con flechas de teclado
   useEffect(() => {
     const handleKeyDown = (e: { key: string }) => {
       if (e.key === "ArrowRight") {
-        if (indexOfLastImage < allImages.length) {
-          setCurrentPage((prev) => prev + 1);
+        if (filteredImages.length === 100) {
+          router.push(`/?page=${currentPage + 1}`);
         }
       }
       if (e.key === "ArrowLeft") {
         if (currentPage > 1) {
-          setCurrentPage((prev) => prev - 1);
+          router.push(`/?page=${currentPage - 1}`);
         }
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentPage, indexOfLastImage, allImages.length]);
+  }, [currentPage, filteredImages.length, router]);
   return (
     <div className="home-page">
       <div className="search-and-random">
@@ -331,15 +340,15 @@ function HomePageContent() {
       )}
       <div className="pagination-controls">
         <button
-          onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+          onClick={() => router.push(`/?page=${Math.max(currentPage - 1, 1)}`)}
           disabled={currentPage === 1}
         >
           ⬅ Anterior
         </button>
         <span>Página {currentPage}</span>
         <button
-          onClick={() => setCurrentPage((prev) => prev + 1)}
-          disabled={indexOfLastImage >= allImages.length}
+          onClick={() => router.push(`/?page=${currentPage + 1}`)}
+          disabled={filteredImages.length < 100}
         >
           Siguiente ➡
         </button>

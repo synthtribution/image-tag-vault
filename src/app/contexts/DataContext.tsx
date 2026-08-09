@@ -6,6 +6,7 @@ import {
   useState,
   useEffect,
   ReactNode,
+  useCallback,
 } from "react";
 import { ImageData, TagInfo } from "../types";
 
@@ -16,6 +17,7 @@ interface DataContextType {
   setImages: (images: ImageData[]) => void;
   setFilteredImages: (images: ImageData[]) => void;
   setTagsIndex: (tags: TagInfo[]) => void;
+  fetchImagesPage: (page: number) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -25,7 +27,28 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [filteredImages, setFilteredImages] = useState<ImageData[]>([]);
   const [tagsIndex, setTagsIndex] = useState<TagInfo[]>([]);
 
-  // Efecto para cargar las imágenes y el índice de tags desde la API del backend
+  // Función para cargar una página específica de imágenes desde la API
+  const fetchImagesPage = useCallback(async (page: number) => {
+    const imageUrl = process.env.NEXT_PUBLIC_IMAGE_URL || "http://localhost:3001/imagenes/";
+    let apiUrl = "http://localhost:3001";
+    try {
+      apiUrl = new URL(imageUrl).origin;
+    } catch (e) {
+      console.warn("Invalid NEXT_PUBLIC_IMAGE_URL, using fallback http://localhost:3001", e);
+    }
+
+    try {
+      const res = await fetch(`${apiUrl}/api/images?page=${page}`);
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      const data = await res.json();
+      setImages(data);
+      setFilteredImages(data);
+    } catch (err) {
+      console.error(`Error fetching page ${page} from database API:`, err);
+    }
+  }, []);
+
+  // Cargar el índice global de tags para el autocompletado en el cliente
   useEffect(() => {
     const imageUrl = process.env.NEXT_PUBLIC_IMAGE_URL || "http://localhost:3001/imagenes/";
     let apiUrl = "http://localhost:3001";
@@ -35,21 +58,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
       console.warn("Invalid NEXT_PUBLIC_IMAGE_URL, using fallback http://localhost:3001", e);
     }
 
-    // 1. Cargar todas las imágenes
-    fetch(`${apiUrl}/api/images`)
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        return res.json();
-      })
-      .then((data) => {
-        setImages(data);
-        setFilteredImages(data);
-      })
-      .catch((err) => {
-        console.error("Error fetching images from database API:", err);
-      });
-
-    // 2. Cargar índice de tags pre-calculado
     fetch(`${apiUrl}/api/tags`)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
@@ -72,6 +80,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         setImages,
         setFilteredImages,
         setTagsIndex,
+        fetchImagesPage,
       }}
     >
       {children}
@@ -86,4 +95,3 @@ export function useDataContext() {
   }
   return context;
 }
-
