@@ -6,9 +6,8 @@ import {
   useState,
   useEffect,
   ReactNode,
+  useCallback,
 } from "react";
-import { fetchData } from "../utils/fetchData";
-import { buildTagsIndex } from "../utils/buildTagsIndex";
 import { ImageData, TagInfo } from "../types";
 
 interface DataContextType {
@@ -18,6 +17,7 @@ interface DataContextType {
   setImages: (images: ImageData[]) => void;
   setFilteredImages: (images: ImageData[]) => void;
   setTagsIndex: (tags: TagInfo[]) => void;
+  fetchImagesPage: (page: number) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -27,16 +27,47 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [filteredImages, setFilteredImages] = useState<ImageData[]>([]);
   const [tagsIndex, setTagsIndex] = useState<TagInfo[]>([]);
 
-  // Efecto para cargar las imágenes cuando el componente se monta
+  // Función para cargar una página específica de imágenes desde la API
+  const fetchImagesPage = useCallback(async (page: number) => {
+    const imageUrl = process.env.NEXT_PUBLIC_IMAGE_URL || "http://localhost:3001/imagenes/";
+    let apiUrl = "http://localhost:3001";
+    try {
+      apiUrl = new URL(imageUrl).origin;
+    } catch (e) {
+      console.warn("Invalid NEXT_PUBLIC_IMAGE_URL, using fallback http://localhost:3001", e);
+    }
+
+    try {
+      const res = await fetch(`${apiUrl}/api/images?page=${page}`);
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      const data = await res.json();
+      setImages(data);
+      setFilteredImages(data);
+    } catch (err) {
+      console.error(`Error fetching page ${page} from database API:`, err);
+    }
+  }, []);
+
+  // Cargar el índice global de tags para el autocompletado en el cliente
   useEffect(() => {
-    fetchData() // Llamamos a la función para cargar los datos desde el CSV
+    const imageUrl = process.env.NEXT_PUBLIC_IMAGE_URL || "http://localhost:3001/imagenes/";
+    let apiUrl = "http://localhost:3001";
+    try {
+      apiUrl = new URL(imageUrl).origin;
+    } catch (e) {
+      console.warn("Invalid NEXT_PUBLIC_IMAGE_URL, using fallback http://localhost:3001", e);
+    }
+
+    fetch(`${apiUrl}/api/tags`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return res.json();
+      })
       .then((data) => {
-        setImages(data);
-        setFilteredImages(data);
-        setTagsIndex(buildTagsIndex(data));
+        setTagsIndex(data);
       })
       .catch((err) => {
-        console.error("Error fetching images:", err);
+        console.error("Error fetching tags index from database API:", err);
       });
   }, []);
 
@@ -49,6 +80,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         setImages,
         setFilteredImages,
         setTagsIndex,
+        fetchImagesPage,
       }}
     >
       {children}

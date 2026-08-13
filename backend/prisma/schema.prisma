@@ -1,0 +1,64 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Image {
+  id         Int              @id @default(autoincrement())
+  filename   String           @unique
+  createdAt  DateTime
+  ratingId   Int?
+  rating     Rating?          @relation(fields: [ratingId], references: [id])
+  tags       ImageTag[]
+  characters ImageCharacter[]
+
+  @@map("images")
+}
+
+model Tag {
+  id     Int        @id @default(autoincrement())
+  name   String     @unique
+  images ImageTag[]
+
+  @@map("tags")
+}
+
+model ImageTag {
+  imageId Int
+  tagId   Int
+  image   Image @relation(fields: [imageId], references: [id], onDelete: Cascade)
+  tag     Tag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([imageId, tagId])
+  @@map("image_tags")
+}
+
+model Character {
+  id     Int              @id @default(autoincrement())
+  name   String           @unique
+  images ImageCharacter[]
+
+  @@map("characters")
+}
+
+model ImageCharacter {
+  imageId     Int
+  characterId Int
+  image       Image     @relation(fields: [imageId], references: [id], onDelete: Cascade)
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@id([imageId, characterId])
+  @@map("image_characters")
+}
+
+model Rating {
+  id     Int     @id @default(autoincrement())
+  name   String  @unique
+  images Image[]
+
+  @@map("ratings")
+}

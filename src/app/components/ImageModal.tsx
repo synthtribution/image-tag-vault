@@ -81,21 +81,21 @@ const ImageModal: React.FC<ImageModalProps> = ({
             </h4>
             <h4 className="text-lg font-semibold mb-1">Tags:</h4>
             <p className="mb-2 text-sm text-gray-700">
-              {imageData.tags.join(", ")}
+              {imageData.tags?.join(", ") || "Cargando..."}
             </p>
 
             <h4 className="text-lg font-semibold mb-1">Characters:</h4>
             <p className="mb-2 text-sm text-gray-700">
-              {imageData.character_tags.join(", ")}
+              {imageData.character_tags?.join(", ") || "Cargando..."}
             </p>
 
             <h4 className="text-lg font-semibold mb-1">Ratings:</h4>
             <p className="mb-2 text-sm text-gray-700">
-              {imageData.ratings.join(", ")}
+              {imageData.ratings?.join(", ") || "Cargando..."}
             </p>
 
             <p className="text-xs text-gray-500">
-              Uploaded: {new Date(imageData.created_at).toLocaleString()}
+              Uploaded: {imageData.created_at ? new Date(imageData.created_at).toLocaleString() : "Cargando..."}
             </p>
           </div>
         </div>
