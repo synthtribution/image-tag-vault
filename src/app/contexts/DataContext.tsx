@@ -17,7 +17,7 @@ interface DataContextType {
   setImages: (images: ImageData[]) => void;
   setFilteredImages: (images: ImageData[]) => void;
   setTagsIndex: (tags: TagInfo[]) => void;
-  fetchImagesPage: (page: number) => Promise<void>;
+  fetchImagesPage: (page: number, search?: string) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -27,8 +27,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [filteredImages, setFilteredImages] = useState<ImageData[]>([]);
   const [tagsIndex, setTagsIndex] = useState<TagInfo[]>([]);
 
-  // Función para cargar una página específica de imágenes desde la API
-  const fetchImagesPage = useCallback(async (page: number) => {
+  // Función para cargar una página específica de imágenes filtradas o completas desde la API
+  const fetchImagesPage = useCallback(async (page: number, search?: string) => {
     const imageUrl = process.env.NEXT_PUBLIC_IMAGE_URL || "http://localhost:3001/imagenes/";
     let apiUrl = "http://localhost:3001";
     try {
@@ -38,13 +38,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const res = await fetch(`${apiUrl}/api/images?page=${page}`);
+      const searchParam = search ? `&tags=${encodeURIComponent(search)}` : '';
+      const res = await fetch(`${apiUrl}/api/images?page=${page}${searchParam}`);
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const data = await res.json();
       setImages(data);
       setFilteredImages(data);
     } catch (err) {
-      console.error(`Error fetching page ${page} from database API:`, err);
+      console.error(`Error fetching page ${page} (search: ${search}) from database API:`, err);
     }
   }, []);
 

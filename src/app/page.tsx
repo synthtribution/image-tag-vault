@@ -11,13 +11,13 @@ import ImageModal from "./components/ImageModal";
 
 // El componente principal de la página
 function HomePageContent() {
-  const { images, filteredImages, tagsIndex, setFilteredImages, fetchImagesPage } =
+  const { filteredImages, tagsIndex, fetchImagesPage } =
     useDataContext(); // Obtenemos el contexto de datos
 
   const [searchText, setSearchText] = useState(""); // Texto que el usuario escribe
   const [suggestions, setSuggestions] = useState<TagInfo[]>([]); // Sugerencias de autocompletado
   const [selectedTags, setSelectedTags] = useState<string[]>([]); // Tags seleccionados para el filtro
-  const [error, setError] = useState<string | null>(null); // Estado para manejar errores
+  const [error] = useState<string | null>(null); // Estado para manejar errores
   const [activeSuggestionIndex, setActiveSuggestionIndex] =
     useState<number>(-1);
   const [isInputFocused, setIsInputFocused] = useState<boolean>(false);
@@ -43,17 +43,12 @@ function HomePageContent() {
     setIsClient(true);
   }, []);
 
-  // sincroniza la búsqueda con el input si viene desde un link externo
+  // sincroniza la búsqueda con el input y tags seleccionados si cambia la URL
   useEffect(() => {
     const query = searchParams.get("search") || "";
     setSearchText(query);
-
-    if (images.length > 0) {
-      const tags = parseTagsFromString(query); // Parseamos los tags desde el string
-      setSelectedTags(tags); // Actualiza los tags seleccionados
-      applyFilters(tags); // Aplica los filtros
-    } // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, images]);
+    setSelectedTags(parseTagsFromString(query));
+  }, [searchParams]);
 
   useEffect(() => {
     if (suggestionsDiv.current) {
@@ -125,37 +120,18 @@ function HomePageContent() {
     }
   }
 
-  // Función para aplicar el filtro de imágenes
+  // Función para aplicar el filtro de imágenes redirigiendo mediante la URL
   function applyFilters(tags?: string[]) {
-    const tagsToUse = tags ?? selectedTags; // Si no se pasan tags, usamos los seleccionados
+    const tagsToUse = tags ?? selectedTags;
     console.log("Tags a usar:", tagsToUse);
-    if (tagsToUse.length === 0) {
-      setRandomImages([]);
-      setRandomCount(0);
-      setSelectedTags([]); // ¡Si no hay texto, borra los tags seleccionados también!
-      setFilteredImages(images); // Muestra todas las imágenes
-      manageSuggestions([]); // Borra sugerencias
-      return;
-    }
-
-    const filtered = images.filter((img) => {
-      const allTags = [
-        ...(img.tags || []),
-        ...(img.character_tags || []),
-        ...(img.ratings || []),
-      ];
-      return tagsToUse.every((tag) => allTags.includes(tag));
-    });
-    if (filtered.length === 0) {
-      setError("No se encontraron imágenes con esos tags.");
-    } else {
-      setError(null); // Limpiamos el error si hay resultados
-    }
-    // Actualizamos las imágenes filtradas
+    
+    const tagsStr = tagsToUse.join(", ");
     setRandomImages([]);
     setRandomCount(0);
-    setFilteredImages(filtered);
     manageSuggestions([]);
+
+    // Redirigir a la página 1 con el nuevo término de búsqueda en la URL
+    router.push(`/?page=1&search=${encodeURIComponent(tagsStr)}`);
   }
 
   // Función para manejar el "Enter" en el input (aplica filtros)
@@ -212,29 +188,33 @@ function HomePageContent() {
     [currentPage, randomImages, filteredImages]
   );
 
-  // Cargar las imágenes del servidor cuando cambia la página en la URL
+  // Cargar las imágenes del servidor cuando cambia la página o el filtro de búsqueda en la URL
   useEffect(() => {
-    fetchImagesPage(currentPage);
-  }, [currentPage, fetchImagesPage]);
+    const query = searchParams.get("search") || "";
+    fetchImagesPage(currentPage, query);
+  }, [currentPage, searchParams, fetchImagesPage]);
 
   // Manejar navegación con flechas de teclado
   useEffect(() => {
     const handleKeyDown = (e: { key: string }) => {
+      const query = searchParams.get("search") || "";
+      const queryParam = query ? `&search=${encodeURIComponent(query)}` : "";
+
       if (e.key === "ArrowRight") {
         if (filteredImages.length === 100) {
-          router.push(`/?page=${currentPage + 1}`);
+          router.push(`/?page=${currentPage + 1}${queryParam}`);
         }
       }
       if (e.key === "ArrowLeft") {
         if (currentPage > 1) {
-          router.push(`/?page=${currentPage - 1}`);
+          router.push(`/?page=${currentPage - 1}${queryParam}`);
         }
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentPage, filteredImages.length, router]);
+  }, [currentPage, filteredImages.length, searchParams, router]);
   return (
     <div className="home-page">
       <div className="search-and-random">
@@ -340,14 +320,22 @@ function HomePageContent() {
       )}
       <div className="pagination-controls">
         <button
-          onClick={() => router.push(`/?page=${Math.max(currentPage - 1, 1)}`)}
+          onClick={() => {
+            const query = searchParams.get("search") || "";
+            const queryParam = query ? `&search=${encodeURIComponent(query)}` : "";
+            router.push(`/?page=${Math.max(currentPage - 1, 1)}${queryParam}`);
+          }}
           disabled={currentPage === 1}
         >
           ⬅ Anterior
         </button>
         <span>Página {currentPage}</span>
         <button
-          onClick={() => router.push(`/?page=${currentPage + 1}`)}
+          onClick={() => {
+            const query = searchParams.get("search") || "";
+            const queryParam = query ? `&search=${encodeURIComponent(query)}` : "";
+            router.push(`/?page=${currentPage + 1}${queryParam}`);
+          }}
           disabled={filteredImages.length < 100}
         >
           Siguiente ➡

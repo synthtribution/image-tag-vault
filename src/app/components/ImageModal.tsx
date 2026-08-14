@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { ImageData } from "../types";
 import { copyImageToClipboard } from "../utils/copyImageToClipboard";
 
@@ -15,6 +15,39 @@ const ImageModal: React.FC<ImageModalProps> = ({
   onPrev,
   onNext,
 }) => {
+  const [fullData, setFullData] = useState<ImageData | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  // Cargar detalles completos de la imagen en segundo plano al abrir el modal o cambiar de ID
+  useEffect(() => {
+    setFullData(null);
+    setLoading(true);
+
+    const imageUrl = process.env.NEXT_PUBLIC_IMAGE_URL || "http://localhost:3001/imagenes/";
+    let apiUrl = "http://localhost:3001";
+    try {
+      apiUrl = new URL(imageUrl).origin;
+    } catch (e) {
+      console.warn("Invalid NEXT_PUBLIC_IMAGE_URL, using fallback http://localhost:3001", e);
+    }
+
+    fetch(`${apiUrl}/api/images/${imageData.id}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load details");
+        return res.json();
+      })
+      .then((data) => {
+        setFullData(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Error loading image details:", err);
+        setLoading(false);
+      });
+  }, [imageData.id]);
+
+  const currentData = fullData || imageData;
+
   return (
     <div
       className="fixed inset-0 bg-gray-800/50 flex justify-center items-center z-50"
@@ -65,37 +98,38 @@ const ImageModal: React.FC<ImageModalProps> = ({
           <div className="flex items-center justify-center w-full">
             {/*eslint-disable-next-line @next/next/no-img-element*/}
             <img
-              src={`${process.env.NEXT_PUBLIC_IMAGE_URL}${imageData.image}`}
+              src={`${process.env.NEXT_PUBLIC_IMAGE_URL}${currentData.image}`}
               alt="selected"
               className="max-h-[95vh] w-auto object-contain cursor-pointer"
               onClick={() =>
                 copyImageToClipboard(
-                  `${process.env.NEXT_PUBLIC_IMAGE_URL}${imageData.image}`
+                  `${process.env.NEXT_PUBLIC_IMAGE_URL}${currentData.image}`
                 )
               }
             />
           </div>
           <div className="w-full bg-gray-100 border-t border-gray-300 p-4">
             <h4 className="text-xl font-semibold mb-1 text-center">
-              {imageData.image}
+              {currentData.image}
             </h4>
+            
             <h4 className="text-lg font-semibold mb-1">Tags:</h4>
             <p className="mb-2 text-sm text-gray-700">
-              {imageData.tags?.join(", ") || "Cargando..."}
+              {loading ? "Cargando..." : currentData.tags?.join(", ") || "(Ninguno)"}
             </p>
 
             <h4 className="text-lg font-semibold mb-1">Characters:</h4>
             <p className="mb-2 text-sm text-gray-700">
-              {imageData.character_tags?.join(", ") || "Cargando..."}
+              {loading ? "Cargando..." : currentData.character_tags?.join(", ") || "(Ninguno)"}
             </p>
 
             <h4 className="text-lg font-semibold mb-1">Ratings:</h4>
             <p className="mb-2 text-sm text-gray-700">
-              {imageData.ratings?.join(", ") || "Cargando..."}
+              {loading ? "Cargando..." : currentData.ratings?.join(", ") || "(Ninguno)"}
             </p>
 
             <p className="text-xs text-gray-500">
-              Uploaded: {imageData.created_at ? new Date(imageData.created_at).toLocaleString() : "Cargando..."}
+              Uploaded: {currentData.created_at ? new Date(currentData.created_at).toLocaleString() : "Cargando..."}
             </p>
           </div>
         </div>
