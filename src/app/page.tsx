@@ -1,6 +1,5 @@
 "use client"; // Indica que este archivo es de cliente y permite el uso de hooks y efectos de React
 import { useEffect, useState, useRef, useMemo, Suspense } from "react"; // Import useRef
-import { searchTags } from "./utils/searchTags"; // Importamos la función de búsqueda
 import { getIconForType } from "./utils/getIconForType"; // Importamos la función de iconos
 import { ImageData, TagInfo } from "./types"; // Importamos los tipos de datos
 import { useDataContext } from "./contexts/DataContext";
@@ -11,7 +10,7 @@ import ImageModal from "./components/ImageModal";
 
 // El componente principal de la página
 function HomePageContent() {
-  const { filteredImages, tagsIndex, fetchImagesPage } =
+  const { filteredImages, fetchImagesPage } =
     useDataContext(); // Obtenemos el contexto de datos
 
   const [searchText, setSearchText] = useState(""); // Texto que el usuario escribe
@@ -36,6 +35,7 @@ function HomePageContent() {
   const searchInputDivRef = useRef<HTMLDivElement | null>(null);
   const suggestionsDiv = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const suggestionsAbortControllerRef = useRef<AbortController | null>(null);
 
   // Para asegurar el render en cliente
   const [isClient, setIsClient] = useState(false);
@@ -74,18 +74,51 @@ function HomePageContent() {
 
     // Buscamos sugerencias solo del último término escrito
     const terms = parseTagsFromString(value);
-    const lastTerm = terms[terms.length - 1];
+    const lastTerm = terms[terms.length - 1]?.trim() || "";
     setSelectedTags(terms); // Actualizamos los tags seleccionados
 
-    const results = searchTags(tagsIndex, lastTerm);
-    if (
-      results.length === 1 &&
-      results[0].name.toLowerCase() === lastTerm.toLowerCase()
-    ) {
-      manageSuggestions([]); // Si escribiste exactamente el tag, oculta sugerencias
-    } else {
-      manageSuggestions(results); // Si no, sigue mostrando sugerencias
+    if (lastTerm === "") {
+      manageSuggestions([]);
+      return;
     }
+
+    // Abortar petición anterior si existía
+    if (suggestionsAbortControllerRef.current) {
+      suggestionsAbortControllerRef.current.abort();
+    }
+
+    // Crear un nuevo AbortController
+    const controller = new AbortController();
+    suggestionsAbortControllerRef.current = controller;
+
+    const imageUrl = process.env.NEXT_PUBLIC_IMAGE_URL || "http://localhost:3001/imagenes/";
+    let apiUrl = "http://localhost:3001";
+    try {
+      apiUrl = new URL(imageUrl).origin;
+    } catch {}
+
+    fetch(`${apiUrl}/api/tags?search=${encodeURIComponent(lastTerm)}`, {
+      signal: controller.signal,
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Error fetching suggestions");
+        return res.json();
+      })
+      .then((results: TagInfo[]) => {
+        if (
+          results.length === 1 &&
+          results[0].name.toLowerCase() === lastTerm.toLowerCase()
+        ) {
+          manageSuggestions([]); // Si coincide exactamente, ocultamos sugerencias
+        } else {
+          manageSuggestions(results);
+        }
+      })
+      .catch((err) => {
+        if (err.name !== "AbortError") {
+          console.error("Error fetching autocomplete suggestions:", err);
+        }
+      });
   }
 
   // Función para agregar un tag seleccionado desde sugerencias

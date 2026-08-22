@@ -1,13 +1,22 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, OnModuleInit, InternalServerErrorException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TagResponseDto } from './dto/tag-response.dto';
 
 @Injectable()
-export class TagsService {
+export class TagsService implements OnModuleInit {
+  private tagsCache: TagResponseDto[] = [];
+
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(): Promise<TagResponseDto[]> {
+  async onModuleInit() {
+    await this.loadCache();
+  }
+
+  // Carga todas las etiquetas, personajes y clasificaciones en memoria RAM
+  async loadCache() {
     try {
+      console.log('TagsService - Cargando caché de autocompletado en memoria...');
+      
       // 1. Obtener todas las etiquetas generales con el recuento de imágenes
       const tags = await this.prisma.tag.findMany({
         select: {
@@ -39,17 +48,44 @@ export class TagsService {
       });
 
       // 4. Consolidar todo en el formato TagResponseDto
-      const tagResponse: TagResponseDto[] = [
+      this.tagsCache = [
         ...tags.map((t) => ({ name: t.name, count: t._count.images, type: 'tag' as const })),
         ...characters.map((c) => ({ name: c.name, count: c._count.images, type: 'character' as const })),
         ...ratings.map((r) => ({ name: r.name, count: r._count.images, type: 'rating' as const })),
       ];
 
-      // 5. Ordenar descendentemente por contador de imágenes
-      return tagResponse.sort((a, b) => b.count - a.count);
+      // 5. Ordenar descendentemente por popularidad (count)
+      this.tagsCache.sort((a, b) => b.count - a.count);
+      console.log(`TagsService - Caché cargada con éxito: ${this.tagsCache.length} sugerencias cargadas en memoria.`);
     } catch (error) {
-      console.error('Error in TagsService.findAll:', error);
-      throw new InternalServerErrorException('Error al consultar las etiquetas en la base de datos.');
+      console.error('Error al precargar la caché de etiquetas:', error);
     }
+  }
+
+  // Busca sugerencias en memoria de forma ultra-rápida y limita a 15 elementos (o devuelve todo si all es true)
+  async findSuggestions(search?: string, all?: boolean): Promise<TagResponseDto[]> {
+    if (all) {
+      return this.tagsCache;
+    }
+
+    if (!search) {
+      // Si no hay parámetro de búsqueda y no se solicita todo, devolvemos las 15 más populares
+      return this.tagsCache.slice(0, 15);
+    }
+
+    const query = search.toLowerCase();
+    const matched: TagResponseDto[] = [];
+
+    // Búsqueda lineal eficiente sobre la caché pre-ordenada
+    for (const item of this.tagsCache) {
+      if (item.name.toLowerCase().includes(query)) {
+        matched.push(item);
+        if (matched.length === 15) {
+          break; // Salimos de inmediato si ya completamos las 15 sugerencias
+        }
+      }
+    }
+
+    return matched;
   }
 }
