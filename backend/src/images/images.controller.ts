@@ -10,8 +10,16 @@ export class ImagesController {
   @Get()
   async findByPage(
     @Query('page') page?: string,
-    @Query('tags') tags?: string
+    @Query('tags') tags?: string,
+    @Query('random') random?: string
   ): Promise<ImageListItemDto[]> {
+    // Si se solicita una lista de imágenes aleatorias
+    if (random) {
+      const count = parseInt(random, 10);
+      const validCount = isNaN(count) || count < 1 ? 1 : count;
+      return this.imagesService.findRandom(validCount, tags);
+    }
+
     const pageNumber = page ? parseInt(page, 10) : 1;
     const validPage = isNaN(pageNumber) || pageNumber < 1 ? 1 : pageNumber;
     return this.imagesService.findByPage(validPage, tags);

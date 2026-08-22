@@ -117,4 +117,93 @@ export class ImagesService {
       throw new InternalServerErrorException('Error al consultar los detalles de la imagen.');
     }
   }
+
+  // Método para obtener una selección aleatoria de imágenes sobre toda la base de datos (con o sin filtros)
+  async findRandom(count: number, tagsParam?: string): Promise<ImageListItemDto[]> {
+    try {
+      // Construir la condición where para búsquedas relacionales
+      let where: any = {};
+
+      if (tagsParam) {
+        const tagsList = tagsParam
+          .split(',')
+          .map((t) => t.trim())
+          .filter(Boolean);
+
+        if (tagsList.length > 0) {
+          where = {
+            AND: tagsList.map((term) => ({
+              OR: [
+                {
+                  tags: {
+                    some: {
+                      tag: {
+                        name: term,
+                      },
+                    },
+                  },
+                },
+                {
+                  characters: {
+                    some: {
+                      character: {
+                        name: term,
+                      },
+                    },
+                  },
+                },
+                {
+                  rating: {
+                    name: term,
+                  },
+                },
+              ],
+            })),
+          };
+        }
+      }
+
+      // 1. Obtener únicamente los IDs de todas las imágenes que coinciden (operación indexada muy rápida)
+      console.log(`ImagesService.findRandom - Buscando IDs coincidentes (tags: ${tagsParam || 'ninguno'})...`);
+      const allIds = await this.prisma.image.findMany({
+        where,
+        select: {
+          id: true,
+        },
+      });
+
+      if (allIds.length === 0) {
+        return [];
+      }
+
+      // 2. Mezclar el arreglo de IDs en memoria RAM y tomar los primeros 'count' elementos
+      const shuffledIds = allIds
+        .map((item) => item.id)
+        .sort(() => Math.random() - 0.5)
+        .slice(0, count);
+
+      // 3. Consultar únicamente el id y filename de las imágenes seleccionadas
+      console.log(`ImagesService.findRandom - Solicitando datos para ${shuffledIds.length} imágenes...`);
+      const images = await this.prisma.image.findMany({
+        where: {
+          id: {
+            in: shuffledIds,
+          },
+        },
+        select: {
+          id: true,
+          filename: true,
+        },
+      });
+
+      // 4. Mapear al formato ImageListItemDto
+      return images.map((img) => ({
+        id: img.id,
+        image: img.filename,
+      }));
+    } catch (error) {
+      console.error('Error in ImagesService.findRandom:', error);
+      throw new InternalServerErrorException('Error al consultar imágenes aleatorias en la base de datos.');
+    }
+  }
 }

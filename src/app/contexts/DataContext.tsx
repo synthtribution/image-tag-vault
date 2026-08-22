@@ -15,6 +15,7 @@ interface DataContextType {
   setImages: (images: ImageData[]) => void;
   setFilteredImages: (images: ImageData[]) => void;
   fetchImagesPage: (page: number, search?: string) => Promise<void>;
+  fetchRandomImages: (count: number, search?: string) => Promise<ImageData[]>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -45,6 +46,25 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Función para obtener imágenes aleatorias desde la API (con o sin filtros de tags)
+  const fetchRandomImages = useCallback(async (count: number, search?: string): Promise<ImageData[]> => {
+    const imageUrl = process.env.NEXT_PUBLIC_IMAGE_URL || "http://localhost:3001/imagenes/";
+    let apiUrl = "http://localhost:3001";
+    try {
+      apiUrl = new URL(imageUrl).origin;
+    } catch {}
+
+    try {
+      const searchParam = search ? `&tags=${encodeURIComponent(search)}` : '';
+      const res = await fetch(`${apiUrl}/api/images?random=${count}${searchParam}`);
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      return res.json();
+    } catch (err) {
+      console.error(`Error fetching random images (count: ${count}, search: ${search}):`, err);
+      return [];
+    }
+  }, []);
+
   return (
     <DataContext.Provider
       value={{
@@ -53,6 +73,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         setImages,
         setFilteredImages,
         fetchImagesPage,
+        fetchRandomImages,
       }}
     >
       {children}

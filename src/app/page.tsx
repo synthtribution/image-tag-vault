@@ -11,7 +11,7 @@ import RandomSelector from "./components/RandomSelector";
 
 // El componente principal de la página
 function HomePageContent() {
-  const { filteredImages, fetchImagesPage } = useDataContext();
+  const { filteredImages, fetchImagesPage, fetchRandomImages } = useDataContext();
 
   const [randomImages, setRandomImages] = useState<typeof filteredImages>([]);
   const [selectedImage, setSelectedImage] = useState<ImageData | null>(null);
@@ -38,15 +38,17 @@ function HomePageContent() {
     router.push(`/?page=1&search=${encodeURIComponent(tagsStr)}`);
   }
 
-  function handleGenerateRandom(count: number) {
+  async function handleGenerateRandom(count: number) {
     if (count === 0) {
       setRandomImages([]);
       return;
     }
-    const shuffled = [...filteredImages].sort(() => Math.random() - 0.5);
-    const selectedCount = Math.min(count, shuffled.length);
-    const selected = shuffled.slice(0, selectedCount);
-    setRandomImages(selected);
+    try {
+      const data = await fetchRandomImages(count, searchQuery);
+      setRandomImages(data);
+    } catch (err) {
+      console.error("Error generating random images:", err);
+    }
   }
 
   const renderImage = ({ data }: { data: ImageData }) => (
