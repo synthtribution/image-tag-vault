@@ -11,10 +11,6 @@ interface TagListProps {
 export default function TagList({ tags, filterType }: TagListProps) {
   const router = useRouter();
 
-  const filteredTags = tags
-    .filter((tag) => tag.type === filterType)
-    .sort((a, b) => b.count - a.count);
-
   const handleTagClick = (tagName: string) => {
     router.push(`/?search=${encodeURIComponent(tagName)}`);
   };
@@ -25,7 +21,7 @@ export default function TagList({ tags, filterType }: TagListProps) {
         {filterType}s
       </h1>
       <div className="mx-5 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 ">
-        {filteredTags.map((tag) => (
+        {tags.map((tag) => (
           <button
             key={tag.name}
             onClick={() => handleTagClick(tag.name)}

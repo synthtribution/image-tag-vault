@@ -9,9 +9,10 @@ export class TagsController {
   @Get()
   async getSuggestions(
     @Query('search') search?: string,
-    @Query('all') all?: string
+    @Query('all') all?: string,
+    @Query('type') type?: string
   ): Promise<TagResponseDto[]> {
     const fetchAll = all === 'true';
-    return this.tagsService.findSuggestions(search, fetchAll);
+    return this.tagsService.findSuggestions(search, fetchAll, type);
   }
 }

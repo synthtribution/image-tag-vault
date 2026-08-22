@@ -15,7 +15,7 @@ export default function TagsPage() {
       apiUrl = new URL(imageUrl).origin;
     } catch {}
 
-    fetch(`${apiUrl}/api/tags?all=true`)
+    fetch(`${apiUrl}/api/tags?all=true&type=tag`)
       .then((res) => {
         if (!res.ok) throw new Error("Error loading tags");
         return res.json();

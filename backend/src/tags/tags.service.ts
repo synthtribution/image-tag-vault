@@ -63,21 +63,28 @@ export class TagsService implements OnModuleInit {
   }
 
   // Busca sugerencias en memoria de forma ultra-rápida y limita a 15 elementos (o devuelve todo si all es true)
-  async findSuggestions(search?: string, all?: boolean): Promise<TagResponseDto[]> {
+  async findSuggestions(search?: string, all?: boolean, type?: string): Promise<TagResponseDto[]> {
+    let list = this.tagsCache;
+
+    // Si se especifica el tipo, filtramos el arreglo en memoria
+    if (type) {
+      list = list.filter((item) => item.type === type);
+    }
+
     if (all) {
-      return this.tagsCache;
+      return list;
     }
 
     if (!search) {
       // Si no hay parámetro de búsqueda y no se solicita todo, devolvemos las 15 más populares
-      return this.tagsCache.slice(0, 15);
+      return list.slice(0, 15);
     }
 
     const query = search.toLowerCase();
     const matched: TagResponseDto[] = [];
 
-    // Búsqueda lineal eficiente sobre la caché pre-ordenada
-    for (const item of this.tagsCache) {
+    // Búsqueda lineal eficiente sobre la caché pre-ordenada y filtrada
+    for (const item of list) {
       if (item.name.toLowerCase().includes(query)) {
         matched.push(item);
         if (matched.length === 15) {

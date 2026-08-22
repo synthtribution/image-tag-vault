@@ -15,7 +15,7 @@ export default function RatingsPage() {
       apiUrl = new URL(imageUrl).origin;
     } catch {}
 
-    fetch(`${apiUrl}/api/tags?all=true`)
+    fetch(`${apiUrl}/api/tags?all=true&type=rating`)
       .then((res) => {
         if (!res.ok) throw new Error("Error loading tags");
         return res.json();
