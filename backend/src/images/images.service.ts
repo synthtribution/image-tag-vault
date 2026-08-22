@@ -176,11 +176,18 @@ export class ImagesService {
         return [];
       }
 
-      // 2. Mezclar el arreglo de IDs en memoria RAM y tomar los primeros 'count' elementos
-      const shuffledIds = allIds
-        .map((item) => item.id)
-        .sort(() => Math.random() - 0.5)
-        .slice(0, count);
+      // 2. Mezclar los IDs usando Fisher-Yates parcial de forma imparcial (Complejidad O(K))
+      const shuffledIds: number[] = [];
+      const idsPool = allIds.map((item) => item.id);
+      const limit = Math.min(count, idsPool.length);
+
+      for (let i = 0; i < limit; i++) {
+        // Elegir un índice aleatorio del pool restante (entre i y idsPool.length - 1)
+        const randomIndex = Math.floor(Math.random() * (idsPool.length - i)) + i;
+        // Intercambiar el elemento actual con el elemento aleatorio
+        [idsPool[i], idsPool[randomIndex]] = [idsPool[randomIndex], idsPool[i]];
+        shuffledIds.push(idsPool[i]);
+      }
 
       // 3. Consultar únicamente el id y filename de las imágenes seleccionadas
       console.log(`ImagesService.findRandom - Solicitando datos para ${shuffledIds.length} imágenes...`);
