@@ -297,7 +297,7 @@ function HomePageContent() {
           <div className="suggestions" ref={suggestionsDiv}>
             {suggestions.map((suggestion, index) => (
               <div
-                key={suggestion.name}
+                key={`${suggestion.type}-${suggestion.name}`}
                 className={`suggestion-item ${
                   index === activeSuggestionIndex ? "active" : ""
                 }`}
